@@ -61,4 +61,4 @@ typings/
 .next
 
 auth.json
-data
+./data/data.db

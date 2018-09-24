@@ -69,7 +69,7 @@ exports.commands = {
                 description: "I'll respond with a \"bork.\" Useful for checking if I'm alive.",
                 process: function(msg, params){
                     choice = Math.floor(Math.random() * borks.length);
-                    msg.channel.send(borks[choice]).then(m => m.edit(`Pong! | Took ${m.createdTimestamp - msg.createdTimestamp}ms`));
+                    msg.channel.send(borks[choice]).then(m => m.edit(`${borks[choice]} | Took ${m.createdTimestamp - msg.createdTimestamp}ms`));
                 }
             },
             "pull": {

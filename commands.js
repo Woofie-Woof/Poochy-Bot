@@ -47,17 +47,29 @@ catch(e){
     console.log("Now now, if you don't have 'child_process', Yoshi won't be able to restart.");
 }
 
+let choice = 0;
+
+let borks = [
+    'Woof!',
+    'Wuf wuf',
+    'Bork',
+    'Arf!',
+    'Woof wuf woof!',
+    'Wooooof woof',
+    'Bork bork wuf'
+];
 
 exports.commands = {
     "mod": {
         description: "All commands to debug the bot or to carry out administrative tasks",
         help: "help mod",
         commands:{
-            "ping": {
-                usage: "ping",
-                description: "I'll respond with a \"pong.\" Useful for checking if I'm alive.",
+            "bork": {
+                usage: "bork",
+                description: "I'll respond with a \"bork.\" Useful for checking if I'm alive.",
                 process: function(msg, params){
-                    msg.channel.send("Pong!").then(m => m.edit(`Pong! | Took ${m.createdTimestamp - msg.createdTimestamp}ms`));
+                    choice = Math.floor(Math.random() * borks.length);
+                    msg.channel.send(borks[choice]).then(m => m.edit(`Pong! | Took ${m.createdTimestamp - msg.createdTimestamp}ms`));
                 }
             },
             "pull": {

@@ -21,7 +21,7 @@ try {
 }
 catch(e) {
     console.log("Well, no reading files, then. 'fs' is kinda necessary for that.");
-    process.exit()
+    process.exit();
 }
 
 try {
@@ -29,6 +29,14 @@ try {
 }
 catch (e) {
     console.log("I'm REQUESTing you to get 'request.' I need it for pretty much everything.")
+}
+
+try{
+    var commands = require('./commands.js').commands;
+}
+catch(e){
+    console.log("You see, if you don't have a 'commands.js', you can't really command me to do things...");
+    process.exit();
 }
 
 try {
@@ -60,12 +68,12 @@ let randomRes = [
 ];
 
 let randomGreetings = [
-    'Woof, hi!',
+    'woof, hi!',
     '*wags tail*',
-    'Hello there!',
-    'Hi hi hi!',
-    'Wuf wuf, heyo',
-    'Haaai'
+    'hello there!',
+    'hi hi hi!',
+    'wuf wuf, heyo',
+    'haaai'
 ];
 
 bot.login(auth.token);
@@ -91,7 +99,62 @@ bot.on("ready", function () {
 bot.on("message", function (msg) {
     guild = db.prepare(`SELECT * from Servers WHERE id = ?`).get(msg.guild.id);
     if(msg.author.id != bot.user.id && msg.content.startsWith(guild.prefix)){
+        var msgcmd = msg.content.split(" ")[0].substring(1);
+        var params = msg.content.substring(msgcmd.length + 2);
 
+        if(msgcmd == "help"){
+            console.log("<@" + msg.author.id + ">" + " asks for &" + msgcmd + " " + params);
+            var info = "```";
+            if(params){
+                if(commands[params]){
+                    msg.channel.send("These are the commands for the module **" + params + "**:").then(msg => {
+                        for(var command in commands[params].commands){
+                            info += "&" + command;
+                            var usage = commands[params].commands[command].usage;
+                            if(usage){
+                                info += " " + usage;
+                            }
+                            var description = commands[params].commands[command].description;
+                            if(description){
+                                info += "\n\t" + description + "\n\n";
+                            }
+                        }
+                        info += "```";
+                        msg.channel.send(info);
+                    });
+                }
+                else{
+                     msg.channel.send("I was unable to find that module.");
+                }
+                return;
+            }
+            else{
+                msg.channel.send("Choose a module to see commands for:").then(msg => {
+                    for(var module in commands) {
+                        info += module;
+                        var help = commands[module].help;
+                        if(help){
+                            info += " - " + help;
+                        }
+                        var description = commands[module].description;
+                        if(description){
+                            info += "\n\t" + description + "\n\n";
+                        }
+                    }
+                    info += "```";
+                    msg.channel.send(info);
+                    return;
+                });
+            }
+        }
+
+        for(var module in commands){
+            var cmd = commands[module].commands[msgcmd];
+            if(cmd){
+                console.log("Received command `&" + msgcmd + "` from user <@" + msg.author.id + ">");
+                cmd.process(msg, params);
+            }
+        }
     }
     else if(msg.author.id != bot.user.id && msg.isMentioned(bot.user)){
         if(greetingRegex.test(msg.content)){

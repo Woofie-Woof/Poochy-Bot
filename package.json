@@ -6,6 +6,7 @@
         "erlpack": "github:hammerandchisel/erlpack",
         "forever": "^0.15.3",
         "node-opus": "^0.3.0",
-        "request": "^2.88.0"
+        "request": "^2.88.0",
+        "simple-git": "^1.102.0"
     }
 }

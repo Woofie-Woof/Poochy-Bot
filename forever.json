@@ -1,0 +1,7 @@
+{
+    "uid": "pooochy",
+    "append": true,
+    "watch": true,
+    "script": "Poochy.js",
+    "sourceDir": ""
+}

@@ -103,16 +103,16 @@ bot.on("message", function (msg) {
         var params = msg.content.substring(msgcmd.length + 2);
 
         if(msgcmd == "help"){
-            console.log("<@" + msg.author.id + ">" + " asks for &" + msgcmd + " " + params);
+            console.log("<@" + msg.author.id + ">" + " asks for " + guild.prefix + msgcmd + " " + params);
             var info = "```";
             if(params){
                 if(commands[params]){
                     msg.channel.send("These are the commands for the module **" + params + "**:").then(msg => {
                         for(var command in commands[params].commands){
-                            info += "&" + command;
+                            info += guild.prefix + command;
                             var usage = commands[params].commands[command].usage;
                             if(usage){
-                                info += " " + usage;
+                                info += " - " + guild.prefix + usage;
                             }
                             var description = commands[params].commands[command].description;
                             if(description){
@@ -134,7 +134,7 @@ bot.on("message", function (msg) {
                         info += module;
                         var help = commands[module].help;
                         if(help){
-                            info += " - " + help;
+                            info += " - " + guild.prefix + help;
                         }
                         var description = commands[module].description;
                         if(description){
@@ -151,7 +151,7 @@ bot.on("message", function (msg) {
         for(var module in commands){
             var cmd = commands[module].commands[msgcmd];
             if(cmd){
-                console.log("Received command `&" + msgcmd + "` from user <@" + msg.author.id + ">");
+                console.log("Received command `" + guild.prefix + msgcmd + "` from user <@" + msg.author.id + ">");
                 cmd.process(msg, params);
             }
         }

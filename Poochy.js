@@ -85,7 +85,7 @@ let randomGreetings = [
 
 bot.login(auth.token);
 
-bot.on("ready", function () {
+bot.on("ready", () => {
     console.log('Poochy online and ready to woof!');
     bot.user.setPresence({game:{name:"in Yoshi's Island!"}, status: "online"});
 
@@ -104,7 +104,7 @@ bot.on("ready", function () {
     }
 
     servers = bot.guilds.array();
-    servers.forEach(function(element) {
+    servers.forEach((element) => {
         row = db.prepare(`SELECT * from Servers WHERE id = ?`).get(element.id);
 
         if(!row){
@@ -116,21 +116,33 @@ bot.on("ready", function () {
 bot.on("guildMemberAdd", (member) => {
     dbGuild = db.prepare('SELECT * FROM Servers WHERE id = ?').get(member.guild.id);
     if(dbGuild.is_logging_enabled){
-        if(guild.channels.get(dbGuild.logging_channel) == null){
-            db.prepare('UPDATE Servers SET is_logging_enabled = ? AND logging_channel = ? WHERE id = ?').run(0, null, guild.id);
+        if(member.guild.channels.get(dbGuild.logging_channel) == null){
+            db.prepare('UPDATE Servers SET is_logging_enabled = ? AND logging_channel = ? WHERE id = ?').run(0, null, member.guild.id);
             return;
         }
         var t = moment.tz(dbGuild.timezone).format('YYYY-MMM-DD HH:mm:ss');
-        bot.channels.get(dbGuild.logging_channel).sendMessage("```" + t + "```" + "**" + member.username + "#" + member.discriminator + "** just joined the server! (ID: " + member.id  + ")");
+        bot.channels.get(dbGuild.logging_channel).send(`\`\`\`${t}\`\`\` **${member.user.username}#${member.user.discriminator}** just joined the server! (ID: ${member.id})`);
     }
 
 	if(dbGuild.is_welcome_enabled){
-		if(guild.channels.get(dbGuild.welcome_channel) == null || dbGuild.welcome_message == null){
-			db.prepare('UPDATE Servers SET is_welcome_enabled = ? WHERE id = ?').run(0, guild.id);
+		if(member.guild.channels.get(dbGuild.welcome_channel) == null || dbGuild.welcome_message == null){
+			db.prepare('UPDATE Servers SET is_welcome_enabled = ? WHERE id = ?').run(0, member.guild.id);
             return;
 		}
-		bot.channels.get(dbGuild.welcome_channel).sendMessage("<@" + member.id + "> " + dbGuild.welcome_message);
+		bot.channels.get(dbGuild.welcome_channel).send(`<@${member.id}> ${dbGuild.welcome_message}`);
 	}
+});
+
+bot.on("guildMemberRemove", (member) => {
+    dbGuild = db.prepare('SELECT * FROM Servers WHERE id = ?').get(member.guild.id);
+    if(dbGuild.is_logging_enabled){
+        if(member.guild.channels.get(dbGuild.logging_channel) == null){
+            db.prepare('UPDATE Servers SET is_logging_enabled = ? AND logging_channel = ? WHERE id = ?').run(0, null, member.guild.id);
+            return;
+        }
+        var t = moment.tz(dbGuild.timezone).format('YYYY-MMM-DD HH:mm:ss');
+        bot.channels.get(dbGuild.logging_channel).send(`\`\`\`${t}\`\`\` **${member.user.username}#${member.user.discriminator}** just left or was kicked from the server. (ID: ${member.id})`);
+    }
 });
 
 bot.on("messageDelete", (message) => {
@@ -142,7 +154,12 @@ bot.on("messageDelete", (message) => {
                 return;
 			}
 			var t = moment.tz(dbGuild.timezone).format('YYYY-MMM-DD HH:mm:ss');
-	        bot.channels.get(dbGuild.logging_channel).sendMessage("```" + t + "```" + "Message by **" + message.author.username + "#" + message.author.discriminator + "** was deleted in " + message.channel.name + "\n**Message: **" + message.content);
+            bot.channels.get(dbGuild.logging_channel).send(
+                `\`\`\`${t}\`\`\` Message by **${message.author.username}#${message.author.discriminator}** was deleted in ${message.channel}
+                **Message: **${message.cleanContent}
+                **Attachments:**"
+                ${message.attachments.map(attachment => attachment.url).join("\n")}`.replace(/^[^\S\n]+/gm, '')
+            );
 		}
 	}
 });
@@ -157,13 +174,17 @@ bot.on("messageUpdate", (oldMessage, newMessage) =>{
 					db.prepare('UPDATE Servers SET is_logging_enabled = ? AND logging_channel = ? WHERE id = ?').run(0, null, dbGuild.id);
                     return;
 				}
-            	bot.channels.get(dbGuild.logging_channel).sendMessage("```" + d + "```" + "Message by **" + newMessage.author.username + "#" + newMessage.author.discriminator + "** was updated in " + newMessage.channel + "\n**Old:** " + oldMessage.content + "\n**New:** " + newMessage.content);
+                bot.channels.get(dbGuild.logging_channel).send(
+                    `\`\`\`${d}\`\`\` Message by **${newMessage.author.username}#${newMessage.author.discriminator}** was updated in ${newMessage.channel}
+                    **Old:** ${oldMessage.cleanContent}
+                    **New:** ${newMessage.cleanContent}`.replace(/^[^\S\n]+/gm, '')
+                );
         	}
         }
     }
 });
 
-bot.on("message", function (msg) {
+bot.on("message", (msg) => {
     guild = db.prepare(`SELECT * from Servers WHERE id = ?`).get(msg.guild.id);
     if(msg.author.id != bot.user.id && msg.content.startsWith(guild.prefix)){
         var contentSplit = msg.content.split(" ");
@@ -171,7 +192,7 @@ bot.on("message", function (msg) {
         var params = contentSplit.slice(1);
 
         if(msgcmd == "help"){
-            console.log("<@" + msg.author.id + ">" + " asks for " + guild.prefix + msgcmd + " " + params);
+            console.log(`<@${msg.author.id}> asks for ${guild.prefix}${msgcmd} ${params}`);
             var info = "```";
             if(params.length > 0){
                 if(commands[params]){

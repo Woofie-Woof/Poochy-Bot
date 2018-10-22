@@ -47,6 +47,13 @@ catch(e){
     console.log("Now now, if you don't have 'child_process', Yoshi won't be able to restart.");
 }
 
+try {
+    var moment = require('moment-timezone');
+}
+catch (e) {
+    console.log("You don't seem to have Moment Timezone installed. Any time manipulation will be broken!");
+}
+
 let choice = 0;
 
 let borks = [
@@ -159,13 +166,14 @@ exports.commands = {
                 		msg.channel.send("You cannot change the settings for these Direct Messages (for now).");
                 		return;
                 	}
-                    if(msg.member.roles.find('name', "Poochy")){
+                    if(msg.member.roles.find(role => role.name == 'Poochy')){
                         switch(params[0]){
                             case "help":
                                 var helpString = "Here's how you can configure the bot for your server:\n";
-                                helpString += "`!config prefix <special character>`: Customizes the prefix to use for commands in your server. Cannot be a number or a letter.\n";
-                                helpString += "`!config logging <(enable|disable)/channel> [channel link]`: Enables logging (deleted/edited messages) or sets the logging channel. A logging channel must be set to enable.\n";
-                                helpString += "`!config welcome <(enable|disable)/channel/message> [channel link/message]`: Enables welcome messages for new users, sets the channel to say welcomes in, or sets the welcome message.\n";
+                                helpString += "`" + guild.prefix + "config prefix <special character>`: Customizes the prefix to use for commands in your server. Cannot be a number or a letter.\n";
+                                helpString += "`" + guild.prefix + "config logging <(enable|disable)/channel> [channel link]`: Enables logging (deleted/edited messages) or sets the logging channel. A logging channel must be set to enable.\n";
+                                helpString += "`" + guild.prefix + "config welcome <(enable|disable)/channel/message> [channel link/message]`: Enables welcome messages for new users, sets the channel to say welcomes in, or sets the welcome message.\n";
+                                helpString += "`" + guild.prefix + "config timezone <valid timezone>`: Changes the timezone in which Poochy will report dates in for your server.";
                                 msg.channel.send(helpString);
                                 break;
                             case "prefix":
@@ -242,6 +250,15 @@ exports.commands = {
                                     msg.channel.send(confusResponses[choice]);
                                 }
                                 break;
+                            case "timezone":
+                                if(moment.tz.zone(params[1])){
+                                    db.prepare(`UPDATE Servers SET timezone=? WHERE id=?`).run(params[1], msg.guild.id);
+                                    msg.channel.send("Arf, the timezone in this server has been updated to: **" + params[1] + "**");
+                                    return;
+                                }
+                                else{
+                                    msg.channel.send("Grr, that's no valid timezone! Try again.");
+                                }
                             default:
                                 msg.channel.send("Ruff, are you lost? Try `" + guild.prefix + "config help` first!");
                                 break;

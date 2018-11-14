@@ -173,7 +173,8 @@ exports.commands = {
                                 helpString += "`" + guild.prefix + "config prefix <special character>`: Customizes the prefix to use for commands in your server. Cannot be a number or a letter.\n";
                                 helpString += "`" + guild.prefix + "config logging <(enable|disable)/channel> [channel link]`: Enables logging (deleted/edited messages) or sets the logging channel. A logging channel must be set to enable.\n";
                                 helpString += "`" + guild.prefix + "config welcome <(enable|disable)/channel/message> [channel link/message]`: Enables welcome messages for new users, sets the channel to say welcomes in, or sets the welcome message.\n";
-                                helpString += "`" + guild.prefix + "config timezone <valid timezone>`: Changes the timezone in which Poochy will report dates in for your server.";
+                                helpString += "`" + guild.prefix + "config timezone <valid timezone>`: Changes the timezone in which Poochy will report dates in for your server.\n";
+                                helpString += "`" + guild.prefix + "config flairing <(channel|set|remove|list)>`: Enables self-flairing for users based on emojis, setting the channel, or listing already existing flairs.";
                                 msg.channel.send(helpString);
                                 break;
                             case "prefix":
@@ -259,6 +260,106 @@ exports.commands = {
                                 else{
                                     msg.channel.send("Grr, that's no valid timezone! Try again.");
                                 }
+                            case "flairing":
+                                if(params[1] == "channel"){
+                                    if(channelRegex.test(params[2])){
+                                        db.prepare(`UPDATE Servers SET flair_channel=? WHERE id=?`).run(params[2].replace(/[^\w\s]/gi, ''), msg.guild.id);
+                                        msg.channel.send("Arf, flairs will be assigned in " + params[2] + "!");
+                                        return;
+                                    }
+                                    msg.channel.send("*sniff sniff* \nGrr, can't smell channel link! Remember, a channel link looks like `#channel_name`.");
+                                }
+                                else if(params[1] == "set"){
+                                    flairParams = msg.content.match(/"[^"]+"/g);
+                                    if(flairParams.size > 0){
+                                        msg.channel.send(`Grr, remember to surround the role name with \`"\`! Check \`${guild.prefix}config help\` for details!`);
+                                        return;
+                                    }
+                                    
+                                    let role = msg.guild.roles.find("name", flairParams[0].replace(/"/g, ''));
+                                    if(role){
+                                        let operation = 'INSERT INTO Flairs (server_id, role_id, emoji_id) VALUES (?, ?, ?)';
+                                        let existing_id = 0;
+                                        let existing = db.prepare(`SELECT * FROM flairs WHERE server_id=? AND role_id=?`).get(msg.guild.id, role.id);
+
+                                        if(existing){
+                                            existing_id = existing.id;
+                                            operation = 'UPDATE Flairs SET server_id=?, role_id=?, emoji_id=? WHERE id=?';
+                                        }
+
+                                        emoji = null;
+                                        numRegex = /[0-9]+/g;
+                                        if(numRegex.test(flairParams[1])){
+                                            inputEmoji = flairParams[1].match(numRegex)[0];
+                                            emoji = msg.guild.emojis.get(inputEmoji);
+                                        }
+
+                                        if(!emoji){
+                                            msg.channel.send("Arf, the given emoji does not exist in this server!");
+                                            return;
+                                        }
+
+                                        taken = db.prepare(`SELECT * FROM flairs WHERE server_id=? AND emoji_id=?`).get(msg.guild.id, inputEmoji);
+                                        if(taken){
+                                            msg.channel.send("Ruff... this emoji is already associated with another flair! Unset it first, then try again.");
+                                            return;
+                                        }
+
+                                        let statement = db.prepare(operation);
+                                        if(existing_id > 0){
+                                            statement.run(msg.guild.id, role.id, inputEmoji, existing_id);
+                                        }
+                                        else{
+                                            statement.run(msg.guild.id, role.id, inputEmoji);
+                                        }
+                                        msg.channel.send(`The role ${role.name} was associated with the emoji <:${emoji.name}:${emoji.id}>!`);
+                                        return;
+                                    }
+                                    else{
+                                        msg.channel.send(`Arf, the given role does not exist in this server!`)
+                                        return;
+                                    }
+                                }
+                                else if(params[1] == "list"){
+                                    flairs = db.prepare(`SELECT * FROM Flairs WHERE server_id=?`).all(msg.guild.id);
+
+                                    messageString = "";
+
+                                    flairs.forEach(f => {
+                                        let role = msg.guild.roles.get(f.role_id);
+                                        let emoji = msg.guild.emojis.get(f.emoji_id);
+                                        if(!role || !emoji){
+                                            db.prepare("DELETE FROM Flairs WHERE id=?").run(f.id);
+                                        }
+                                        else{
+                                            messageString += `${role.name} - <:${emoji.name}:${emoji.id}>\n`;
+                                        }
+                                    });
+
+                                    msg.channel.send(messageString);
+                                    return;
+                                }
+                                else if(params[1] == "remove"){
+                                    if(params.length < 3){
+                                        msg.channel.send("Oops, please specify the name of the flair to remove!");
+                                        return;
+                                    }
+
+                                    flairParams = msg.content.match(/"[^"]+"/g);
+
+                                    let role = msg.guild.roles.find("name", flairParams[0].replace(/"/g, ''));
+                                    let existing = db.prepare(`SELECT * FROM flairs WHERE server_id=? AND role_id=?`).get(msg.guild.id, role.id);
+
+                                    if(!existing){
+                                        msg.channel.send("Grr, no flair setting was found under this name!");
+                                        return;
+                                    }
+
+                                    db.prepare("DELETE FROM Flairs WHERE id=?").run(existing.id);
+
+                                    msg.channel.send(`Successfully removed ${role.name} from the flairing list!`);
+                                    return;
+                                }
                             default:
                                 msg.channel.send("Ruff, are you lost? Try `" + guild.prefix + "config help` first!");
                                 break;
@@ -267,6 +368,17 @@ exports.commands = {
                     else{
                         msg.reply("I can't really take that order from you. You need a role named 'Poochy'. Sorry. :c");
                     }
+                }
+            },
+            
+            "test":{
+                usage: "!test",
+                description: "A command used for testing that changes occasionally.",
+                process: function(msg, params, guild){
+                    msg.channel.send("Debugging...");
+                    flairs = db.prepare(`SELECT * FROM Flairs WHERE server_id=?`).all(msg.guild.id);
+                    console.log(flairs);
+                    return;
                 }
             },
         }

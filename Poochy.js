@@ -103,12 +103,29 @@ bot.on("ready", () => {
         db.prepare('UPDATE Migrations SET current_batch = ? WHERE id = ?').run(2, 1);
     }
 
+    if(migration.current_batch < 3){
+        db.prepare('CREATE TABLE Flairs (id INTEGER NOT NULL PRIMARY KEY, server_id INTEGER NOT NULL, role_id TEXT NOT NULL, emoji_id TEXT NOT NULL)').run();
+        db.prepare('ALTER TABLE Servers ADD COLUMN flair_channel TEXT').run();
+        db.prepare('UPDATE Migrations SET current_batch = ? WHERE id = ?').run(3, 1);
+    }
+
     servers = bot.guilds.array();
     servers.forEach((element) => {
         row = db.prepare(`SELECT * from Servers WHERE id = ?`).get(element.id);
 
         if(!row){
             db.prepare(`INSERT INTO Servers (id, name) VALUES (?, ?)`).run(element.id, element.name);
+        }
+        else{
+            if(row.flair_channel){
+                channel = element.channels.get(row.flair_channel);
+                if(!channel){
+                    db.prepare(`UPDATE Servers SET flair_channel = ? WHERE id = ?`).run(null, element.id);
+                }
+                else{
+                    messages = element.channels.get(row.flair_channel).fetchMessages({limit: 20});
+                }
+            }
         }
     });
 });
@@ -148,7 +165,7 @@ bot.on("guildMemberRemove", (member) => {
 bot.on("messageDelete", (message) => {
 	if(message && message.channel.type != "dm"){
         dbGuild = db.prepare('SELECT * FROM Servers WHERE id = ?').get(message.guild.id);
-		if(dbGuild.is_logging_enabled){
+		if(dbGuild.is_logging_enabled && message.channel.id != dbGuild.logging_channel){
 			if(message.guild.channels.get(dbGuild.logging_channel) == null){
 				db.prepare('UPDATE Servers SET is_logging_enabled = ? AND logging_channel = ? WHERE id = ?').run(0, null, dbGuild.id);
                 return;
@@ -157,7 +174,7 @@ bot.on("messageDelete", (message) => {
             bot.channels.get(dbGuild.logging_channel).send(
                 `\`\`\`${t}\`\`\` Message by **${message.author.username}#${message.author.discriminator}** was deleted in ${message.channel}
                 **Message: **${message.cleanContent}
-                **Attachments:**"
+                **Attachments:**
                 ${message.attachments.map(attachment => attachment.url).join("\n")}`.replace(/^[^\S\n]+/gm, '')
             );
 		}
@@ -180,6 +197,68 @@ bot.on("messageUpdate", (oldMessage, newMessage) =>{
                     **New:** ${newMessage.cleanContent}`.replace(/^[^\S\n]+/gm, '')
                 );
         	}
+        }
+    }
+});
+
+bot.on("messageReactionAdd", (reaction, user) => {
+    guild = reaction.message.guild;
+    dbGuild = db.prepare('SELECT * FROM Servers WHERE id = ?').get(guild.id);
+    if(dbGuild.flair_channel && dbGuild.flair_channel == reaction.message.channel.id){
+        if(guild.channels.get(dbGuild.flair_channel) == null){
+            db.prepare('UPDATE Servers SET flair_channel = ? WHERE id = ?').run(null, dbGuild.id);
+            return;
+        }
+
+        dbFlair = db.prepare('SELECT * FROM Flairs WHERE emoji_id = ?').get(reaction.emoji.id);
+        if(dbFlair){
+            role = guild.roles.get(dbFlair.role_id);
+            emoji = guild.emojis.get(dbFlair.emoji_id);
+            if(!role || !emoji){
+                db.prepare('DELETE FROM Flairs WHERE id = ?').run(dbFlair.id);
+            }
+            else{
+                member = guild.member(user);
+                if(member.roles.has(dbFlair.role_id)){
+                    member.removeRole(dbFlair.role_id);
+                    reaction.message.channel.send(`Wuf, removed role ${role.name} from ${user}!`).then(sentMessage => sentMessage.delete(5000));
+                }
+                else{
+                    member.addRole(dbFlair.role_id);
+                    reaction.message.channel.send(`Wuf, added role ${role.name} to ${user}!`).then(sentMessage => sentMessage.delete(5000));
+                }
+            }
+        }
+    }
+});
+
+bot.on("messageReactionRemove", (reaction, user) => {
+    guild = reaction.message.guild;
+    dbGuild = db.prepare('SELECT * FROM Servers WHERE id = ?').get(guild.id);
+    if(dbGuild.flair_channel && dbGuild.flair_channel == reaction.message.channel.id){
+        if(guild.channels.get(dbGuild.flair_channel) == null){
+            db.prepare('UPDATE Servers SET flair_channel = ? WHERE id = ?').run(null, dbGuild.id);
+            return;
+        }
+
+        dbFlair = db.prepare('SELECT * FROM Flairs WHERE emoji_id = ?').get(reaction.emoji.id);
+        if(dbFlair){
+            role = guild.roles.get(dbFlair.role_id);
+            emoji = guild.emojis.get(dbFlair.emoji_id);
+            if(!role || !emoji){
+                db.prepare('DELETE FROM Flairs WHERE id = ?').run(dbFlair.id);
+            }
+            else{
+                member = guild.member(user);
+                if(member.roles.has(dbFlair.role_id)){
+                    member.removeRole(dbFlair.role_id);
+                    reaction.message.channel.send(`Wuf, removed role ${role.name} from ${user}!`).then(sentMessage => sentMessage.delete(5000));
+                }
+                else{
+                    member.addRole(dbFlair.role_id);
+                    reaction.message.channel.send(`Wuf, added role ${role.name} to ${user}!`).then(sentMessage => sentMessage.delete(5000));
+                }
+            }
         }
     }
 });

@@ -61,6 +61,9 @@ catch(e) {
 }
 
 const greetingRegex = /\bhey\w?\b|hi\b|\bhello\b/ig;
+const loveRegex = /love\s+(you|u)|ily|<3|♥/ig;
+const goodBoyRegex = /good\s+(boy|dog|pooch|pup)/ig;
+const thankRegex = /(thank|thx|ty)/ig;
 
 const bot = new Discord.Client({autoReconnect: true, disableEvents: ["TYPING_START", "TYPING_STOP", "GUILD_MEMBER_SPEAKING", "GUILD_MEMBER_AVAILABLE", "PRESSENCE_UPDATE"]});
 
@@ -81,6 +84,30 @@ let randomGreetings = [
     'hi hi hi!',
     'wuf wuf, heyo',
     'haaai'
+];
+
+let randomLove = [
+    'awoo love you, too!',
+    '♥♥♥!',
+    'Poochy luv you!',
+    'woof woof, wuv you, too',
+    'Ruff ♥'
+];
+
+let randomGoodBoy = [
+    '*does a trick to impress you*',
+    '*jumps at you excitedly*',
+    'Woof, me..?',
+    '*poses playfully, wagging his tail*',
+    '*sits and lifts a paw*'
+];
+
+let randomThank = [
+    'wuf, my pleasure!',
+    'no problem!',
+    'you\'re absolutely welcome, ruff!',
+    'anytime!',
+    'arf, happy to help!'
 ];
 
 bot.login(auth.token);
@@ -107,6 +134,11 @@ bot.on("ready", () => {
         db.prepare('CREATE TABLE Flairs (id INTEGER NOT NULL PRIMARY KEY, server_id INTEGER NOT NULL, role_id TEXT NOT NULL, emoji_id TEXT NOT NULL)').run();
         db.prepare('ALTER TABLE Servers ADD COLUMN flair_channel TEXT').run();
         db.prepare('UPDATE Migrations SET current_batch = ? WHERE id = ?').run(3, 1);
+    }
+
+    if(migration.current_batch < 4){
+        db.prepare('ALTER TABLE Servers ADD COLUMN mute_role TEXT').run();
+        db.prepare('UPDATE Migrations SET current_batch = ? WHERE id = ?').run(4, 1);
     }
 
     servers = bot.guilds.array();
@@ -219,11 +251,7 @@ bot.on("messageReactionAdd", (reaction, user) => {
             }
             else{
                 member = guild.member(user);
-                if(member.roles.has(dbFlair.role_id)){
-                    member.removeRole(dbFlair.role_id);
-                    reaction.message.channel.send(`Wuf, removed role ${role.name} from ${user}!`).then(sentMessage => sentMessage.delete(5000));
-                }
-                else{
+                if(!member.roles.has(dbFlair.role_id)){
                     member.addRole(dbFlair.role_id);
                     reaction.message.channel.send(`Wuf, added role ${role.name} to ${user}!`).then(sentMessage => sentMessage.delete(5000));
                 }
@@ -253,10 +281,6 @@ bot.on("messageReactionRemove", (reaction, user) => {
                 if(member.roles.has(dbFlair.role_id)){
                     member.removeRole(dbFlair.role_id);
                     reaction.message.channel.send(`Wuf, removed role ${role.name} from ${user}!`).then(sentMessage => sentMessage.delete(5000));
-                }
-                else{
-                    member.addRole(dbFlair.role_id);
-                    reaction.message.channel.send(`Wuf, added role ${role.name} to ${user}!`).then(sentMessage => sentMessage.delete(5000));
                 }
             }
         }
@@ -320,7 +344,7 @@ bot.on("message", (msg) => {
             var cmd = commands[module].commands[msgcmd];
             if(cmd){
                 console.log("Received command `" + guild.prefix + msgcmd + "` from user <@" + msg.author.id + ">");
-                cmd.process(msg, params, guild);
+                cmd.process(msg, params, guild, bot);
             }
         }
     }
@@ -328,6 +352,18 @@ bot.on("message", (msg) => {
         if(greetingRegex.test(msg.content)){
             choice = Math.floor((Math.random() * randomGreetings.length));
             msg.reply(randomGreetings[choice]);
+        }
+        else if(loveRegex.test(msg.content)){
+            choice = Math.floor((Math.random() * randomLove.length));
+            msg.reply(randomLove[choice]);
+        }
+        else if(thankRegex.test(msg.content)){
+            choice = Math.floor((Math.random() * randomThank.length));
+            msg.reply(randomThank[choice]);
+        }
+        else if(goodBoyRegex.test(msg.content)){
+            choice = Math.floor((Math.random() * randomGoodBoy.length));
+            msg.channel.send(randomGoodBoy[choice]);
         }
         else{
             choice = Math.floor((Math.random() * randomRes.length));

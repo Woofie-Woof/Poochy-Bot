@@ -159,7 +159,7 @@ exports.commands = {
             "config": {
                 usage: "<setting to configure> <parameter> (Ex. !config prefix ^)",
                 description: "Allows you to configure different settings about the bot for your server, such as a prefix for commands, logging, and welcome messages.",
-                process: function(msg, params, guild){
+                process: function(msg, params, guild, bot){
                     choice = Math.floor(Math.random() * borks.length);
 
                 	if(msg.channel.type == "dm"){
@@ -360,6 +360,44 @@ exports.commands = {
                                     msg.channel.send(`Successfully removed ${role.name} from the flairing list!`);
                                     return;
                                 }
+                                break;
+                            case "mute":
+                                let exists = false;
+                                if(guild.mute_role){
+                                    exists = true;
+                                    muteRole = msg.guild.roles.get(guild.mute_role);
+
+                                    if(!muteRole){
+                                        db.prepare('UPDATE Servers SET mute_role = ? WHERE id = ?').run(null, guild.id);
+                                        exists = false;
+                                    }
+                                    else{
+                                        msg.guild.channels.filter(channel => channel.type == 'text' || channel.type == 'category').forEach((channel) => {
+                                            channel.overwritePermissions(muteRole, {'SEND_MESSAGES': false, 'ADD_REACTIONS': false, 'VIEW_CHANNEL': false}); 
+                                        });
+                                    }
+                                }
+
+                                if(!exists){
+                                    botMember = msg.guild.fetchMember(bot.user);
+
+                                    msg.guild.createRole({
+                                        name: "SILENCE",
+                                        color: "#020000",
+                                        position: 0,
+                                        permissions: 0
+                                    }).then((role) => {
+                                        db.prepare('UPDATE Servers SET mute_role = ? WHERE id = ?').run(role.id, guild.id);
+
+                                        msg.guild.channels.filter(channel => channel.type == 'text' || channel.type == 'category').forEach((channel) => {
+                                            channel.overwritePermissions(role, {'SEND_MESSAGES': false, 'ADD_REACTIONS': false, 'VIEW_CHANNEL': false}); 
+                                        });
+                                    });
+                                }
+
+                                msg.channel.send("Woof woof! Successfully configured the mute role `SILENCE`. Please move it as high as possible in the role list!");
+                                break;
+
                             default:
                                 msg.channel.send("Ruff, are you lost? Try `" + guild.prefix + "config help` first!");
                                 break;
@@ -370,9 +408,110 @@ exports.commands = {
                     }
                 }
             },
+
+            "ban": {
+                usage: "ban <user ID or @> (Ex. '!ban 123456789' or '!ban @User#1234')",
+                description: "Bans the given user from this server.",
+                process: function(msg, params, guild){
+                    if(msg.member.hasPermission('BAN_MEMBERS')){
+                        if(params.size < 0){
+                            msg.channel.send("Wuf? You forgot to tell me what user to ban!");
+                            return;
+                        }
+                        banUser = msg.mentions.users.first();
+                        if(!banUser){
+                            banUser = params[0];
+                        }
+    
+                        msg.guild.ban(banUser, {days: 7, reason: params[1]})
+                            .then(user => msg.channel.send(`Ruff, successfully banned user '${user.username || user.id || user}' from this server!`))
+                            .catch((error) => {msg.channel.send('Wuf... something went wrong when trying to ban this user!'); console.log(error)});
+                    }
+                    else{
+                        msg.channel.send("Grr, arf! You don't have permission to ban users!");
+                    }
+                }
+            },
+
+            "mute": {
+                usage: "mute <user @> <amount of time> <seconds/minutes/hours> (Ex. '!mute @User#1234 3 minutes')",
+                description: "Mutes the given user for the given amount of time (no more than 24 hours).",
+                process: function(msg, params, guild){
+                    if(msg.member.hasPermission('MANAGE_ROLES')){
+                        let miliseconds = 1000;
+
+                        if(params.size < 3){
+                            msg.channel.send("Wuf? You didn't give me all the paramenters I need!");
+                            return;
+                        }
+
+                        if(!guild.mute_role){
+                            msg.channel.send(`*sniff* I can't smell the mute role! Configure it with \`${guild.prefix}config mute\``);
+                            return;
+                        }
+
+                        muteRole = msg.guild.roles.get(guild.mute_role);
+
+                        if(!muteRole){
+                            db.prepare('UPDATE Servers SET mute_role = ? WHERE id = ?').run(null, guild.id);
+                            msg.channel.send(`*sniff* I can't smell the mute role! Configure it with \`${guild.prefix}config mute\``);
+                            return;
+                        }
+
+                        user = msg.mentions.users.first();
+                        if(!user){
+                            msg.channel.send('Arf, I can\'t sniff out the given user! Make sure you typed it in correctly!');
+                            return;
+                        }
+
+                        msg.guild.fetchMember(user).then((member) => {
+                            if(isNaN(params[1])){
+                                msg.channel.send("Grr, that's not a numeric amount of time!");
+                                return;
+                            }
+    
+                            switch (params[2]) {
+                                case 'seconds':
+                                    miliseconds *= params[1];
+                                    break;
+                                case 'minutes':
+                                    miliseconds *= (params[1] * 60);
+                                    break;
+                                case 'hours':
+                                    miliseconds *= (params[1] * 3600);
+                                    break;
+                                default:
+                                    miliseconds = 0;
+                                    break;
+                            }
+    
+                            if(miliseconds == 0){
+                                msg.channel.send("Wuf? That's not a time unit! Please use seconds, minutes, or hours!");
+                                return;
+                            }
+                            else if(miliseconds > 86400000){
+                                msg.channel.send("Grr, time cannot exceed 24 hours!");
+                                return;
+                            }
+
+                            let currentRoles = member.roles.map(role => role.id);
+
+                            member.edit({roles: [guild.mute_role]});
+                            setTimeout(function (){
+                                member.edit({roles: currentRoles});
+                            }, miliseconds);
+    
+                            msg.channel.send(`Woof woof, successfully muted ${member.displayName} for ${params[1]} ${params[2]}`);
+                        });
+                    }
+                    else{
+                        msg.channel.send("Grr, arf! You don't have permission to mute users!");
+                    }
+                }
+            },
             
             "test":{
-                usage: "!test",
+                usage: "test",
                 description: "A command used for testing that changes occasionally.",
                 process: function(msg, params, guild){
                     msg.channel.send("Debugging...");

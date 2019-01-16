@@ -363,7 +363,7 @@ exports.commands = {
                                 break;
                             case "mute":
                                 let exists = false;
-                                if(guild.mute_role){
+                                if(guild.mute_role != null){
                                     exists = true;
                                     muteRole = msg.guild.roles.get(guild.mute_role);
 
@@ -379,15 +379,13 @@ exports.commands = {
                                 }
 
                                 if(!exists){
-                                    botMember = msg.guild.fetchMember(bot.user);
-
                                     msg.guild.createRole({
                                         name: "SILENCE",
                                         color: "#020000",
                                         position: 0,
                                         permissions: 0
                                     }).then((role) => {
-                                        db.prepare('UPDATE Servers SET mute_role = ? WHERE id = ?').run(role.id, guild.id);
+                                        db.prepare('UPDATE Servers SET mute_role = ? WHERE id = ?').run(role.id, msg.guild.id);
 
                                         msg.guild.channels.filter(channel => channel.type == 'text' || channel.type == 'category').forEach((channel) => {
                                             channel.overwritePermissions(role, {'SEND_MESSAGES': false, 'ADD_REACTIONS': false, 'VIEW_CHANNEL': false}); 
@@ -515,8 +513,8 @@ exports.commands = {
                 description: "A command used for testing that changes occasionally.",
                 process: function(msg, params, guild){
                     msg.channel.send("Debugging...");
-                    flairs = db.prepare(`SELECT * FROM Flairs WHERE server_id=?`).all(msg.guild.id);
-                    console.log(flairs);
+                    server = db.prepare(`SELECT * FROM Servers WHERE id=?`).get(msg.guild.id);
+                    msg.channel.send(`${server.name} has mute role ${server.mute_role}`);
                     return;
                 }
             },

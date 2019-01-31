@@ -1,4 +1,8 @@
 {
+    "name": "poochy-bot",
+    "version": "1.0.0",
+    "description": "A bot for the Discord application to facilitate several processes inside the Super Smash Bros. Ultimate Yoshi server.",
+    "main": "Poochy.js",
     "dependencies": {
         "better-sqlite3": "^4.1.4",
         "bufferutil": "^4.0.0",
@@ -7,8 +11,24 @@
         "forever": "^0.15.3",
         "moment": "^2.22.2",
         "moment-timezone": "^0.5.21",
-        "node-opus": "^0.3.0",
+        "node-opus": "^0.3.1",
         "request": "^2.88.0",
-        "simple-git": "^1.102.0"
-    }
+        "simple-git": "^1.102.0",
+        "uws": "^99.0.0"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/Woofie-Woof/Poochy-Bot.git"
+    },
+    "keywords": [
+        "discord",
+        "discord.js",
+        "discord-bot"
+    ],
+    "author": "Woofie-Woof",
+    "license": "ISC",
+    "bugs": {
+        "url": "https://github.com/Woofie-Woof/Poochy-Bot/issues"
+    },
+    "homepage": "https://github.com/Woofie-Woof/Poochy-Bot#readme"
 }

@@ -432,8 +432,8 @@ exports.commands = {
             },
 
             "mute": {
-                usage: "mute <user @> <amount of time> <seconds/minutes/hours> (Ex. '!mute @User#1234 3 minutes')",
-                description: "Mutes the given user for the given amount of time (no more than 24 hours).",
+                usage: "mute <amount of time> <seconds/minutes/hours> <@user1> <@user2> ... <@user#> (Ex. '!mute 3 minutes @User#1234 @User#7890')",
+                description: "Mutes the given users for the given amount of time (no more than 24 hours).",
                 process: function(msg, params, guild){
                     if(msg.member.hasPermission('MANAGE_ROLES')){
                         let miliseconds = 1000;
@@ -456,50 +456,51 @@ exports.commands = {
                             return;
                         }
 
-                        user = msg.mentions.users.first();
-                        if(!user){
-                            msg.channel.send('Arf, I can\'t sniff out the given user! Make sure you typed it in correctly!');
+                        if(msg.mentions.users.size <= 0){
+                            msg.channel.send('Arf, I can\'t sniff out any users! Did you properly mention them?');
                             return;
                         }
 
-                        msg.guild.fetchMember(user).then((member) => {
-                            if(isNaN(params[1])){
-                                msg.channel.send("Grr, that's not a numeric amount of time!");
-                                return;
-                            }
+                        msg.mentions.users.forEach(user => {
+                            msg.guild.fetchMember(user).then((member) => {
+                                if(isNaN(params[0])){
+                                    msg.channel.send("Grr, that's not a numeric amount of time!");
+                                    return;
+                                }
+        
+                                switch (params[1]) {
+                                    case 'seconds':
+                                        miliseconds *= params[0];
+                                        break;
+                                    case 'minutes':
+                                        miliseconds *= (params[0] * 60);
+                                        break;
+                                    case 'hours':
+                                        miliseconds *= (params[0] * 3600);
+                                        break;
+                                    default:
+                                        miliseconds = 0;
+                                        break;
+                                }
+        
+                                if(miliseconds == 0){
+                                    msg.channel.send("Wuf? That's not a time unit! Please use seconds, minutes, or hours!");
+                                    return;
+                                }
+                                else if(miliseconds > 86400000){
+                                    msg.channel.send("Grr, time cannot exceed 24 hours!");
+                                    return;
+                                }
     
-                            switch (params[2]) {
-                                case 'seconds':
-                                    miliseconds *= params[1];
-                                    break;
-                                case 'minutes':
-                                    miliseconds *= (params[1] * 60);
-                                    break;
-                                case 'hours':
-                                    miliseconds *= (params[1] * 3600);
-                                    break;
-                                default:
-                                    miliseconds = 0;
-                                    break;
-                            }
+                                let currentRoles = member.roles.map(role => role.id);
     
-                            if(miliseconds == 0){
-                                msg.channel.send("Wuf? That's not a time unit! Please use seconds, minutes, or hours!");
-                                return;
-                            }
-                            else if(miliseconds > 86400000){
-                                msg.channel.send("Grr, time cannot exceed 24 hours!");
-                                return;
-                            }
-
-                            let currentRoles = member.roles.map(role => role.id);
-
-                            member.edit({roles: [guild.mute_role]});
-                            setTimeout(function (){
-                                member.edit({roles: currentRoles});
-                            }, miliseconds);
-    
-                            msg.channel.send(`Woof woof, successfully muted ${member.displayName} for ${params[1]} ${params[2]}`);
+                                member.edit({roles: [guild.mute_role]});
+                                setTimeout(function (){
+                                    member.edit({roles: currentRoles});
+                                }, miliseconds);
+        
+                                msg.channel.send(`Woof woof, successfully muted ${member.displayName} for ${params[0]} ${params[1]}`);
+                            });
                         });
                     }
                     else{

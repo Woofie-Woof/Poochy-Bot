@@ -155,7 +155,13 @@ bot.on("ready", () => {
                     db.prepare(`UPDATE Servers SET flair_channel = ? WHERE id = ?`).run(null, element.id);
                 }
                 else{
-                    messages = element.channels.get(row.flair_channel).fetchMessages({limit: 20});
+                    element.channels.get(row.flair_channel).fetchMessages({limit: 20}).then(messages => {
+                        messages.forEach(m => {
+                            m.reactions.forEach(r => {
+                                r.fetchUsers().catch(err => {console.log(err)});
+                            })
+                        });
+                    });
                 }
             }
         }

@@ -54,6 +54,8 @@ catch (e) {
     console.log("You don't seem to have Moment Timezone installed. Any time manipulation will be broken!");
 }
 
+var request = require('request');
+
 let choice = 0;
 
 let borks = [
@@ -89,55 +91,6 @@ exports.commands = {
                 process: function(msg){
                     choice = Math.floor(Math.random() * borks.length);
                     msg.channel.send(borks[choice]).then(m => m.edit(`${borks[choice]} | Took ${m.createdTimestamp - msg.createdTimestamp}ms`));
-                }
-            },
-            "pull": {
-                usage: "pull",
-                description: "Will check if there is a new commit available. If commit is found, will attempt to restart with the new code.",
-                process: function(msg){
-                    if (msg.author.id === "110932722322505728"){
-                        msg.channel.send("Checking for updates...");
-                        simpleGit().pull(function(error, update) {
-                            if(update && update.summary.changes) {
-                                msg.channel.send("Be right back, arf!").then(message => {
-                                    exec('forever restart poochy', (error, stdout, stderr) => {
-                                        if (error) {
-                                            console.error(`exec error: ${error}`);
-                                            return;
-                                        }
-                                        console.log(`stdout: ${stdout}`);
-                                        console.log(`stderr: ${stderr}`);
-                                    });
-                                }).catch(console.log);
-                            }
-                            else{
-                                msg.channel.send("Already up to date.");
-                                console.log(error);
-                            }
-                        });
-                    }
-                    else{
-                        msg.reply("I can't really take that order from you. Sorry. :c");
-                    }
-                }
-            },
-
-            "restart": {
-                usage: "restart",
-                description: "Forces Poochy to restart without needing to update.",
-                process: function(msg){
-                    if (msg.author.id === "110932722322505728"){
-                        msg.channel.send("Be right back, arf!").then(message => {
-                            exec('forever restart poochy', (error, stdout, stderr) => {
-                                if (error) {
-                                    console.error(`exec error: ${error}`);
-                                    return;
-                                }
-                                console.log(`stdout: ${stdout}`);
-                                console.log(`stderr: ${stderr}`);
-                            });
-                        }).catch(console.log);
-                    }
                 }
             },
 
@@ -416,14 +369,23 @@ exports.commands = {
                             msg.channel.send("Wuf? You forgot to tell me what user to ban!");
                             return;
                         }
-                        banUser = msg.mentions.users.first();
-                        if(!banUser){
-                            banUser = params[0];
+                        banUsers = msg.mentions.users;
+                        if(banUsers.size == 0){
+                            banUsers = msg.content.match(/[0-9]+/g);
                         }
-    
-                        msg.guild.ban(banUser, {days: 7, reason: params[1]})
-                            .then(user => msg.channel.send(`Ruff, successfully banned user '${user.username || user.id || user}' from this server!`))
-                            .catch((error) => {msg.channel.send('Wuf... something went wrong when trying to ban this user!'); console.log(error)});
+
+                        var usersBanned = 0;
+
+                        banUsers.forEach((banUser) => {
+                            msg.guild.ban(banUser, {days: 7})
+                            .then(user => {console.log(`Banned user ${banUser}`)})
+                            .catch(error => {console.log(`Couldn't ban user: ${error}`)});
+
+                            usersBanned++;
+                            if(usersBanned === banUsers.length) {
+                                msg.channel.send('Arf, successfully banned all given users!');
+                            }
+                        });
                     }
                     else{
                         msg.channel.send("Grr, arf! You don't have permission to ban users!");
@@ -513,12 +475,50 @@ exports.commands = {
                 usage: "test",
                 description: "A command used for testing that changes occasionally.",
                 process: function(msg, params, guild){
-                    msg.channel.send("Debugging...");
-                    server = db.prepare(`SELECT * FROM Servers WHERE id=?`).get(msg.guild.id);
-                    msg.channel.send(`${server.name} has mute role ${server.mute_role}`);
-                    return;
+                    msg.channel.send("Oops, there's no testing command right now!");
                 }
             },
+        }
+    },
+    "fun":{
+        description: "All miscellaneous, for fun commands",
+        help: "help fun",
+        commands:{
+            "woof": {
+                usage: "woof",
+                description: "I'll respond with a fantastically cute woof picture!",
+                process: function(msg){
+                    request('https://random.dog/woof.json', function (error, response, body) {
+                        if (!error && response.statusCode == 200) {
+                            var woofJson = JSON.parse(body);
+                            if (typeof (woofJson.url) != "undefined") {
+                                msg.channel.send(woofJson.url);
+                            }
+                            else {
+                                msg.channel.send("Oops, couldn't retrieve a woof! Try again later, wuf...");
+                            }
+                        }
+                    });
+                }
+            },
+            
+            "meow": {
+                usage: "meow",
+                description: "I'll respond with a wonderfully adorable meow picture!",
+                process: function(msg){
+                    request('http://aws.random.cat/meow', function (error, response, body) {
+                        if (!error && response.statusCode == 200) {
+                            var meowJson = JSON.parse(body);
+                            if (typeof (meowJson.file) != "undefined") {
+                                msg.channel.send(meowJson.file);
+                            }
+                            else {
+                                msg.channel.send("Oops, couldn't retrieve a meow! Try again later, wuf...");
+                            }
+                        }
+                    });
+                }
+            }
         }
     }
 }

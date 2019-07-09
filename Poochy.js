@@ -351,6 +351,7 @@ bot.on("message", (msg) => {
             if(cmd){
                 console.log("Received command `" + guild.prefix + msgcmd + "` from user <@" + msg.author.id + ">");
                 cmd.process(msg, params, guild, bot);
+                break;
             }
         }
     }

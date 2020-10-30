@@ -54,6 +54,8 @@ catch (e) {
     console.log("You don't seem to have Moment Timezone installed. Any time manipulation will be broken!");
 }
 
+var parse = require('twemoji-parser');
+
 var request = require('request');
 
 let choice = 0;
@@ -242,13 +244,19 @@ exports.commands = {
 
                                         emoji = null;
                                         numRegex = /[0-9]+/g;
-                                        if(numRegex.test(flairParams[1])){
+
+                                        let twemoji = parse.parse(flairParams[1]);
+                                        if(twemoji.length > 0){
+                                            inputEmoji = flairParams[1].replace(/"/g, '');
+                                            emoji = true;
+                                        }
+                                        else if(numRegex.test(flairParams[1])){
                                             inputEmoji = flairParams[1].match(numRegex)[0];
                                             emoji = msg.guild.emojis.get(inputEmoji);
                                         }
 
                                         if(!emoji){
-                                            msg.channel.send("Arf, the given emoji does not exist in this server!");
+                                            msg.channel.send("Arf, the given emoji does not exist!");
                                             return;
                                         }
 
@@ -265,7 +273,8 @@ exports.commands = {
                                         else{
                                             statement.run(msg.guild.id, role.id, inputEmoji);
                                         }
-                                        msg.channel.send(`The role ${role.name} was associated with the emoji <:${emoji.name}:${emoji.id}>!`);
+                                        let emojiText = twemoji.length > 0 ? inputEmoji : `<:${emoji.name}:${emoji.id}>`
+                                        msg.channel.send(`The role ${role.name} was associated with the emoji ${emojiText}!`);
                                         return;
                                     }
                                     else{
@@ -280,12 +289,20 @@ exports.commands = {
 
                                     flairs.forEach(f => {
                                         let role = msg.guild.roles.get(f.role_id);
-                                        let emoji = msg.guild.emojis.get(f.emoji_id);
+                                        let twemoji = parse.parse(f.emoji_id);
+                                        if(twemoji.length > 0){
+                                            emoji = f.emoji_id;
+                                        }
+                                        else{
+                                            emoji = msg.guild.emojis.get(f.emoji_id);
+                                        }
+                                        
                                         if(!role || !emoji){
                                             db.prepare("DELETE FROM Flairs WHERE id=?").run(f.id);
                                         }
                                         else{
-                                            messageString += `${role.name} - <:${emoji.name}:${emoji.id}>\n`;
+                                            let emojiText = twemoji.length > 0 ? emoji : `<:${emoji.name}:${emoji.id}>`
+                                            messageString += `${role.name} - ${emojiText}\n`;
                                         }
                                     });
 
@@ -470,12 +487,48 @@ exports.commands = {
                     }
                 }
             },
+
+            "clean": {
+                usage: "<number of messages to delete> (Ex. !clean 5)",
+                description: "Deletes the amount of given messages (as a number) in the channel.",
+                process: function(msg, params, choice){
+                    if (msg.member.hasPermission('MANAGE_MESSAGES')){
+                        if(params){
+                            if(!isNaN(params)){
+                                msg.channel.fetchMessages({before: msg.id, limit: params}).then(messages => {
+                                    msg.channel.bulkDelete(messages);
+                                    msg.channel.send(`Woof woof, ${params} messages successfully deleted!`).then(sentMessage => {
+                                        sentMessage.delete(3000);
+                                        msg.delete(3000);
+                                    });
+                                }).catch(console.log);
+                            }
+                            else{
+                                msg.channel.send("Wuf, that's not a number!");
+                            }
+                        }
+                        else{
+                            msg.channel.send("Arf, tell me how many messages to delete!");
+                        }
+                    }
+                    else{
+                        msg.reply("I can't really take that order from you. Sorry. :c");
+                    }
+                }
+            },
             
             "test":{
                 usage: "test",
                 description: "A command used for testing that changes occasionally.",
                 process: function(msg, params, guild){
-                    msg.channel.send("Oops, there's no testing command right now!");
+                    let test = parse.parse(params[0]);
+                    if(test.length > 0){
+                        msg.channel.send('Twemoji');
+                    }
+                    else{
+                        console.log([typeof params[0], params[0]]);
+                        msg.channel.send('Other thing');
+                    }
                 }
             },
         }

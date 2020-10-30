@@ -46,6 +46,8 @@ catch(e){
     process.exit();
 }
 
+var parse = require('twemoji-parser');
+
 try {
     var newDBFlag = false;
     if (!fs.existsSync("./data/data.db")){
@@ -205,7 +207,7 @@ bot.on("messageDelete", (message) => {
         dbGuild = db.prepare('SELECT * FROM Servers WHERE id = ?').get(message.guild.id);
 		if(dbGuild.is_logging_enabled && message.channel.id != dbGuild.logging_channel){
 			if(message.guild.channels.get(dbGuild.logging_channel) == null){
-				db.prepare('UPDATE Servers SET is_logging_enabled = ? AND logging_channel = ? WHERE id = ?').run(0, null, dbGuild.id);
+				db.prepare('UPDATE Servers SET is_logging_enabled = ? AND logging_channel = ? WHERE id = ?').run(0, null, guild.id);
                 return;
 			}
 			var t = moment.tz(dbGuild.timezone).format('YYYY-MMM-DD HH:mm:ss');
@@ -226,7 +228,7 @@ bot.on("messageUpdate", (oldMessage, newMessage) =>{
         if((oldMessage && newMessage) && (oldMessage.content != newMessage.content)){
         	if(dbGuild.is_logging_enabled){
         		if(newMessage.guild.channels.get(dbGuild.logging_channel) == null){
-					db.prepare('UPDATE Servers SET is_logging_enabled = ? AND logging_channel = ? WHERE id = ?').run(0, null, dbGuild.id);
+					db.prepare('UPDATE Servers SET is_logging_enabled = ? AND logging_channel = ? WHERE id = ?').run(0, null, guild.id);
                     return;
 				}
                 bot.channels.get(dbGuild.logging_channel).send(
@@ -244,21 +246,30 @@ bot.on("messageReactionAdd", (reaction, user) => {
     dbGuild = db.prepare('SELECT * FROM Servers WHERE id = ?').get(guild.id);
     if(dbGuild.flair_channel && dbGuild.flair_channel == reaction.message.channel.id){
         if(guild.channels.get(dbGuild.flair_channel) == null){
-            db.prepare('UPDATE Servers SET flair_channel = ? WHERE id = ?').run(null, dbGuild.id);
+            db.prepare('UPDATE Servers SET flair_channel = ? WHERE id = ?').run(null, guild.id);
             return;
         }
 
-        dbFlair = db.prepare('SELECT * FROM Flairs WHERE emoji_id = ?').get(reaction.emoji.id);
+        let emojiId = reaction.emoji.id == null ? reaction.emoji.name : reaction.emoji.id;
+
+        dbFlair = db.prepare('SELECT * FROM Flairs WHERE emoji_id = ? AND server_id = ?').get(emojiId, guild.id);
         if(dbFlair){
             role = guild.roles.get(dbFlair.role_id);
-            emoji = guild.emojis.get(dbFlair.emoji_id);
+            let twemoji = parse.parse(dbFlair.emoji_id);
+            if(twemoji.length > 0){
+                emoji = dbFlair.emoji_id;
+            }
+            else{
+                emoji = guild.emojis.get(dbFlair.emoji_id);
+            }
+
             if(!role || !emoji){
                 db.prepare('DELETE FROM Flairs WHERE id = ?').run(dbFlair.id);
             }
             else{
                 member = guild.member(user);
                 if(!member.roles.has(dbFlair.role_id)){
-                    member.addRole(dbFlair.role_id);
+                    member.addRole(dbFlair.role_id).catch(console.log);
                     reaction.message.channel.send(`Wuf, added role ${role.name} to ${user}!`).then(sentMessage => sentMessage.delete(5000));
                 }
             }
@@ -271,14 +282,23 @@ bot.on("messageReactionRemove", (reaction, user) => {
     dbGuild = db.prepare('SELECT * FROM Servers WHERE id = ?').get(guild.id);
     if(dbGuild.flair_channel && dbGuild.flair_channel == reaction.message.channel.id){
         if(guild.channels.get(dbGuild.flair_channel) == null){
-            db.prepare('UPDATE Servers SET flair_channel = ? WHERE id = ?').run(null, dbGuild.id);
+            db.prepare('UPDATE Servers SET flair_channel = ? WHERE id = ?').run(null, guild.id);
             return;
         }
 
-        dbFlair = db.prepare('SELECT * FROM Flairs WHERE emoji_id = ?').get(reaction.emoji.id);
+        let emojiId = reaction.emoji.id == null ? reaction.emoji.name : reaction.emoji.id;
+
+        dbFlair = db.prepare('SELECT * FROM Flairs WHERE emoji_id = ? AND server_id = ?').get(emojiId, guild.id);
         if(dbFlair){
             role = guild.roles.get(dbFlair.role_id);
-            emoji = guild.emojis.get(dbFlair.emoji_id);
+            let twemoji = parse.parse(dbFlair.emoji_id);
+            if(twemoji.length > 0){
+                emoji = dbFlair.emoji_id;
+            }
+            else{
+                emoji = guild.emojis.get(dbFlair.emoji_id);
+            }
+            
             if(!role || !emoji){
                 db.prepare('DELETE FROM Flairs WHERE id = ?').run(dbFlair.id);
             }
@@ -374,7 +394,7 @@ bot.on("message", (msg) => {
         }
         else{
             choice = Math.floor((Math.random() * randomRes.length));
-            msg.channel.send(randomRes[choice]);
+            msg.channel.send(`${randomRes[choice]} \nMy prefix in this server is \`${guild.prefix}\``);
         }
     }
 });

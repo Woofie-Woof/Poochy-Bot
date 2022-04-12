@@ -13,7 +13,7 @@
         "moment-timezone": "^0.5.21",
         "node-opus": "^0.3.1",
         "request": "^2.88.0",
-        "simple-git": "^1.102.0",
+        "simple-git": "^3.5.0",
         "uws": "^99.0.0"
     },
     "repository": {

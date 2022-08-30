@@ -10,7 +10,7 @@
         "erlpack": "github:hammerandchisel/erlpack",
         "forever": "^0.15.3",
         "moment": "^2.22.2",
-        "moment-timezone": "^0.5.21",
+        "moment-timezone": "^0.5.35",
         "node-opus": "^0.3.1",
         "request": "^2.88.0",
         "simple-git": "^1.102.0",
